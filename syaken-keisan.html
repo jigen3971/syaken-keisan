@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>車検諸経費計算</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Hiragino Sans', sans-serif;
+      background: #f0f2f0;
+      color: #222;
+    }
+
+    h1 {
+      text-align: center;
+      font-size: 1.1rem;
+      font-weight: bold;
+      padding: 12px 16px;
+      background: #2d6a4f;
+      color: #fff;
+      letter-spacing: 0.05em;
+    }
+
+    .container {
+      max-width: 460px;
+      margin: 0 auto;
+      padding: 10px 12px;
+    }
+
+    .card {
+      background: #fff;
+      border-radius: 10px;
+      padding: 12px;
+      margin-bottom: 8px;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.07);
+    }
+
+    .card-title {
+      font-size: 0.72rem;
+      font-weight: bold;
+      color: #2d6a4f;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+      padding-bottom: 5px;
+      border-bottom: 1px solid #e8f5e9;
+    }
+
+    /* 2列グリッド */
+    .row2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .field-label {
+      font-size: 0.78rem;
+      font-weight: bold;
+      color: #444;
+      display: block;
+      margin-bottom: 4px;
+    }
+
+    select, input[type="number"], input[type="text"] {
+      width: 100%;
+      padding: 8px 10px;
+      border: 1.5px solid #ddd;
+      border-radius: 7px;
+      font-size: 0.92rem;
+      background: #fafafa;
+      color: #222;
+      appearance: auto;
+    }
+
+    select:focus, input:focus {
+      outline: none;
+      border-color: #2d6a4f;
+      background: #fff;
+    }
+
+    .fg { margin-bottom: 8px; }
+    .fg:last-child { margin-bottom: 0; }
+
+    /* 車齢バッジ */
+    .age-badge {
+      display: inline-block;
+      margin-top: 4px;
+      padding: 2px 8px;
+      border-radius: 20px;
+      font-size: 0.72rem;
+      font-weight: bold;
+      background: #e8f5e9;
+      color: #2d6a4f;
+    }
+    .age-badge.warn  { background: #fff3e0; color: #e65100; }
+    .age-badge.danger{ background: #fdecea; color: #c62828; }
+    .hidden { display: none !important; }
+
+    /* 型式行 */
+    .katashiki-row {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+    }
+
+    .katashiki-row input {
+      flex: 1;
+      text-transform: uppercase;
+    }
+
+    .btn-search {
+      white-space: nowrap;
+      padding: 8px 10px;
+      background: #2d6a4f;
+      color: #fff;
+      border: none;
+      border-radius: 7px;
+      font-size: 0.78rem;
+      font-weight: bold;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    .hint {
+      font-size: 0.7rem;
+      color: #888;
+      margin-top: 4px;
+      line-height: 1.4;
+    }
+
+    /* 重量税表示 */
+    .jyuryo-display {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 12px;
+      background: #e8f5e9;
+      border-radius: 7px;
+      border-left: 3px solid #2d6a4f;
+    }
+
+    .jd-label { font-size: 0.75rem; color: #555; }
+    .jd-amount { font-size: 1.1rem; font-weight: bold; color: #2d6a4f; }
+
+    .jyuryo-placeholder {
+      font-size: 0.82rem;
+      color: #bbb;
+      text-align: center;
+      padding: 6px 0;
+    }
+
+    /* 計算ボタン */
+    .btn-calc {
+      display: block;
+      width: 100%;
+      padding: 13px;
+      background: #2d6a4f;
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      font-size: 1rem;
+      font-weight: bold;
+      cursor: pointer;
+      margin-bottom: 8px;
+      letter-spacing: 0.05em;
+    }
+    .btn-calc:active { background: #1b5135; }
+
+    /* 内訳 */
+    .breakdown {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.88rem;
+    }
+    .breakdown td {
+      padding: 7px 2px;
+      border-bottom: 1px solid #f0f0f0;
+    }
+    .breakdown tr:last-child td { border-bottom: none; }
+    .breakdown .lc { color: #555; }
+    .breakdown .ac { text-align: right; font-weight: 500; }
+    .breakdown .ac.zero { color: #bbb; }
+
+    /* 合計 */
+    .total-box {
+      background: #2d6a4f;
+      color: #fff;
+      border-radius: 10px;
+      padding: 14px;
+      text-align: center;
+      margin-top: 8px;
+    }
+    .total-box .tl { font-size: 0.8rem; opacity: 0.8; margin-bottom: 2px; }
+    .total-box .ta { font-size: 2rem; font-weight: bold; }
+  </style>
+</head>
+<body>
+
+<h1>車検諸経費計算</h1>
+
+<div class="container">
+
+  <!-- 車両情報 -->
+  <div class="card">
+    <div class="card-title">車両情報</div>
+
+    <div class="row2" style="margin-bottom:8px;">
+      <div>
+        <label class="field-label">車種</label>
+        <select id="sharyu" onchange="onVehicleChange()">
+          <option value="">選択</option>
+          <option value="kei">軽自動車</option>
+          <option value="futsuu">普通乗用車</option>
+          <option value="kei-truck">軽トラック</option>
+          <option value="sho-truck">小型トラック（2t以下）</option>
+          <option value="fut-truck">普通トラック（2t超）</option>
+        </select>
+      </div>
+      <div>
+        <label class="field-label">初年度登録年</label>
+        <select id="nenrei" onchange="onAgeChange()">
+          <option value="">選択</option>
+        </select>
+        <div id="age-badge" class="age-badge hidden"></div>
+      </div>
+    </div>
+
+    <div class="fg" id="group-weight" style="display:none;">
+      <label class="field-label" id="weight-label">車両重量</label>
+      <select id="weight" onchange="calcJyuryozei()">
+        <option value="">選択してください</option>
+        <option value="0.5">0.5t 以下</option>
+        <option value="1.0">0.5t 超〜1t 以下</option>
+        <option value="1.5">1t 超〜1.5t 以下</option>
+        <option value="2.0">1.5t 超〜2t 以下</option>
+        <option value="2.5">2t 超〜2.5t 以下</option>
+        <option value="3.0">2.5t 超〜3t 以下</option>
+        <option value="3.5">3t 超〜3.5t 以下</option>
+        <option value="4.0">3.5t 超〜4t 以下</option>
+        <option value="5.0">4t 超〜5t 以下</option>
+        <option value="6.0">5t 超〜6t 以下</option>
+        <option value="7.0">6t 超〜7t 以下</option>
+        <option value="8.0">7t 超〜8t 以下</option>
+      </select>
+    </div>
+
+    <div class="fg">
+      <label class="field-label">型式　<span style="font-weight:normal;color:#888;">（車検証 左上）</span></label>
+      <div class="katashiki-row">
+        <input type="text" id="katashiki" placeholder="例：ZVW50">
+        <button class="btn-search" onclick="openGoogle()">Google検索</button>
+      </div>
+      <div class="hint">① 型式入力 → Google検索で減税区分を確認　② 下で選択</div>
+    </div>
+
+    <div class="fg">
+      <label class="field-label">エコカー減税区分</label>
+      <select id="eco" onchange="calcJyuryozei()">
+        <option value="none">対象外（通常）</option>
+        <option value="half">50%減税</option>
+        <option value="free">免税（0円）</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- 自賠責 + 重量税 -->
+  <div class="card">
+    <div class="card-title">自賠責 ／ 重量税</div>
+    <div class="row2" style="margin-bottom:8px;">
+      <div>
+        <label class="field-label">自賠責期間</label>
+        <select id="jibaiseki-period">
+          <option value="24">24ヶ月</option>
+          <option value="25">25ヶ月</option>
+          <option value="36">36ヶ月</option>
+          <option value="37">37ヶ月</option>
+        </select>
+      </div>
+      <div style="display:flex; flex-direction:column; justify-content:flex-end;">
+        <label class="field-label">重量税（自動）</label>
+        <div id="jyuryo-result">
+          <div class="jyuryo-placeholder">車両情報を選択</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- その他費用 -->
+  <div class="card">
+    <div class="card-title">その他費用</div>
+    <div class="row2">
+      <div class="fg">
+        <label class="field-label">印紙代　<span style="font-weight:normal;color:#888;">（自動）</span></label>
+        <input type="number" id="insidai" placeholder="1800">
+      </div>
+      <div class="fg">
+        <label class="field-label">代行料</label>
+        <input type="number" id="daikoryou" placeholder="例: 11000" step="500">
+      </div>
+    </div>
+    <div class="fg">
+      <label class="field-label">検査手数料　<span style="font-weight:normal;color:#888;">（任意）</span></label>
+      <input type="number" id="kensateshusuryo" placeholder="必要時のみ" step="500">
+    </div>
+  </div>
+
+  <button class="btn-calc" onclick="calculate()">計算する</button>
+
+  <!-- 結果 -->
+  <div class="card" id="result-card" style="display:none;">
+    <div class="card-title">内訳</div>
+    <table class="breakdown" id="breakdown-table"></table>
+    <div class="total-box">
+      <div class="tl">合計金額</div>
+      <div class="ta" id="total-amount">0円</div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  // ===== Google検索 =====
+  function openGoogle() {
+    const k = document.getElementById('katashiki').value.trim();
+    if (!k) { alert('型式を入力してください'); return; }
+    window.open('https://www.google.com/search?q=' + encodeURIComponent(k + ' エコカー減税 重量税'), '_blank');
+  }
+
+  // ===== 初年度登録年セレクト =====
+  (function() {
+    const sel = document.getElementById('nenrei');
+    const cur = new Date().getFullYear();
+    for (let y = cur; y >= cur - 30; y--) {
+      const r = y - 2018, h = y - 1988;
+      let label = y + '年';
+      if (r > 0) label += '（令和' + r + '年）';
+      else if (h > 0) label += '（平成' + h + '年）';
+      const opt = document.createElement('option');
+      opt.value = y; opt.textContent = label;
+      sel.appendChild(opt);
+    }
+  })();
+
+  // ===== 車齢 =====
+  function getAge() {
+    const y = parseInt(document.getElementById('nenrei').value);
+    return y ? new Date().getFullYear() - y : null;
+  }
+
+  function getCat() {
+    const a = getAge();
+    if (a === null) return null;
+    return a >= 18 ? '18年超' : a >= 13 ? '13年超' : '13年未満';
+  }
+
+  function onAgeChange() {
+    const a = getAge(), badge = document.getElementById('age-badge');
+    if (!a) { badge.classList.add('hidden'); return; }
+    const cat = getCat();
+    badge.classList.remove('hidden','warn','danger');
+    badge.textContent = a + '年経過・' + cat;
+    if (cat === '18年超') badge.classList.add('danger');
+    else if (cat === '13年超') badge.classList.add('warn');
+    calcJyuryozei();
+  }
+
+  function onVehicleChange() {
+    const v = document.getElementById('sharyu').value;
+    const needsWeight = ['futsuu','sho-truck','fut-truck'].includes(v);
+    document.getElementById('group-weight').style.display = needsWeight ? '' : 'none';
+    // 重量ラベル
+    const wl = document.getElementById('weight-label');
+    wl.textContent = v.includes('truck') ? '車両総重量' : '車両重量';
+    // 印紙代 自動セット
+    const ins = document.getElementById('insidai');
+    if (v === 'kei' || v === 'kei-truck') ins.value = 1400;
+    else ins.value = 1800;
+    calcJyuryozei();
+  }
+
+  // ===== 重量税 =====
+  // 軽自動車・軽トラック（固定）
+  const KEI = { '13年未満': 6600, '13年超': 8800, '18年超': 12600 };
+  // 普通車・トラック共通（0.5tごとの税額、2年）
+  const FUT = { '13年未満': 8200, '13年超': 11400, '18年超': 12600 };
+
+  function calcJyuryozei() {
+    const v = document.getElementById('sharyu').value;
+    const eco = document.getElementById('eco').value;
+    const cat = getCat();
+    const div = document.getElementById('jyuryo-result');
+
+    if (!v || !cat) { div.innerHTML = '<div class="jyuryo-placeholder">車両情報を選択</div>'; return; }
+    if (eco === 'free') { renderJ(0, '免税'); return; }
+
+    let base = 0, label = '';
+    if (v === 'kei' || v === 'kei-truck') {
+      base = KEI[cat];
+      label = (v === 'kei' ? '軽自動車' : '軽トラック') + ' / ' + cat;
+    } else {
+      const w = parseFloat(document.getElementById('weight').value);
+      if (!w) { div.innerHTML = '<div class="jyuryo-placeholder">重量を選択</div>'; return; }
+      base = FUT[cat] * Math.ceil(w / 0.5);
+      const typeName = v === 'sho-truck' ? '小型トラック' : v === 'fut-truck' ? '普通トラック' : '普通乗用車';
+      label = typeName + ' ' + w + 't / ' + cat;
+    }
+    if (eco === 'half') { base = Math.floor(base / 2 / 100) * 100; label += '（50%減）'; }
+    renderJ(base, label);
+  }
+
+  function renderJ(amt, lbl) {
+    document.getElementById('jyuryo-result').innerHTML =
+      `<div class="jyuryo-display"><span class="jd-label">${lbl}</span><span class="jd-amount">${amt.toLocaleString()}円</span></div>`;
+  }
+
+  // ===== 自賠責 =====
+  // 自家用・2024年度目安
+  const JIB = {
+    'kei':       { 24:17650, 25:18160, 36:26040, 37:26550 },
+    'futsuu':    { 24:17650, 25:18160, 36:26040, 37:26550 },
+    'kei-truck': { 24:17650, 25:18160, 36:26040, 37:26550 },
+    'sho-truck': { 24:21550, 25:22180, 36:31870, 37:32500 },
+    'fut-truck': { 24:27030, 25:27830, 36:40110, 37:40910 },
+  };
+
+  function getJib() {
+    const v = document.getElementById('sharyu').value;
+    const p = parseInt(document.getElementById('jibaiseki-period').value);
+    return (JIB[v] && JIB[v][p]) || 0;
+  }
+
+  function getJyuAmt() {
+    const v = document.getElementById('sharyu').value, eco = document.getElementById('eco').value, cat = getCat();
+    if (!v || !cat) return 0;
+    if (eco === 'free') return 0;
+    let base = 0;
+    if (v === 'kei' || v === 'kei-truck') {
+      base = KEI[cat];
+    } else {
+      const w = parseFloat(document.getElementById('weight').value);
+      base = w ? FUT[cat] * Math.ceil(w / 0.5) : 0;
+    }
+    if (eco === 'half') base = Math.floor(base / 2 / 100) * 100;
+    return base;
+  }
+
+  // ===== 計算 =====
+  function calculate() {
+    const v = document.getElementById('sharyu').value;
+    if (!v) { alert('車種を選択してください'); return; }
+    if (!document.getElementById('nenrei').value) { alert('初年度登録年を選択してください'); return; }
+    if (v === 'futsuu' && !document.getElementById('weight').value) { alert('車両重量を選択してください'); return; }
+
+    const jib = getJib(), jyu = getJyuAmt();
+    const ins = parseInt(document.getElementById('insidai').value) || 0;
+    const dai = parseInt(document.getElementById('daikoryou').value) || 0;
+    const ken = parseInt(document.getElementById('kensateshusuryo').value) || 0;
+    const total = jib + jyu + ins + dai + ken;
+    const p = document.getElementById('jibaiseki-period').value;
+
+    const rows = [
+      { label: '自賠責（' + p + 'ヶ月）', amt: jib },
+      { label: '重量税', amt: jyu },
+      { label: '印紙代', amt: ins },
+      { label: '代行料', amt: dai },
+      { label: '検査手数料', amt: ken },
+    ];
+
+    document.getElementById('breakdown-table').innerHTML =
+      rows.map(r => `<tr><td class="lc">${r.label}</td><td class="ac ${r.amt===0?'zero':''}">${r.amt.toLocaleString()}円</td></tr>`).join('');
+    document.getElementById('total-amount').textContent = total.toLocaleString() + '円';
+    const card = document.getElementById('result-card');
+    card.style.display = '';
+    card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+</script>
+
+</body>
+</html>
